@@ -43,7 +43,7 @@ img {
 	background: rgba(0,0,0,0);
 	box-sizing: border-box;
 	border: 0;
-	font-family: Consolas, Menlo, monospace;
+	font-family: Lucida Console, Consolas, Menlo, monospace;
 	color: #657b83;
 	padding: 30px 0 0 40px;
 	resize: none;
@@ -55,9 +55,9 @@ img {
   border: 0;
   width: 100%;
   padding: 22px 0 0 0;
-  line-height: 25px;
-  font-size: 16px;
-  font-family: Consolas, Monaco, monospace;
+  line-height: 16px;
+  font-size: 12px;
+  font-family: Lucida Console, Consolas, Monaco, monospace;
   opacity: 1;
   transition: opacity 0.3s;
 }
@@ -201,7 +201,7 @@ a:hover {
 .content {
 	display: block;
 	color: #586e75;
-	font-family: Consolas, Monaco, monospace;
+	font-family: Lucida Console, Consolas, Monaco, monospace;
 	padding: 70px 10px 200px 20px;
 }
 .content p {
