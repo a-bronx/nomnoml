@@ -209,7 +209,14 @@ skanaar.vector = {
     mult: function (v,factor){ return { x: factor*v.x, y: factor*v.y } },
     mag: function (v){ return Math.sqrt(v.x*v.x + v.y*v.y) },
     normalize: function (v){ return skanaar.vector.mult(v, 1/skanaar.vector.mag(v)) },
-    rot: function (a){ return { x: a.y, y: -a.x } }
+    rot: function (a){ return { x: a.y, y: -a.x } },
+    dot: function(a, b){ return a.x*b.x + a.y*b.y },    
+    rotation: function(a, dir) { 
+        var cos = a.x*dir.x + a.y*dir.y
+        var sin = a.x*dir.y - a.y*dir.x
+        return [[cos, sin], [-sin, cos]]
+    },
+    rotate: function(v, rot) { return {x: v.x*rot[0][0]+v.y*rot[1][0], y: v.x*rot[0][1]+v.y*rot[1][1] } }
 };
 ;
 var skanaar = skanaar || {}
@@ -486,7 +493,7 @@ break;
 case 9:this.$ = $$[$0-1].concat([[]]);
 break;
 case 10:
-           var t = $$[$0-1].trim().replace(/\\(\[|\]|\|)/g, '$'+'1').match('^(.*?)([<:o+]*-/?-*[:o+>]*)(.*)$');
+           var t = $$[$0-1].trim().replace(/\\(\[|\]|\|)/g, '$'+'1').match('^(.*?)([<:o+)]*-/?-*[:o+>()]*)(.*)$');
            this.$ = {assoc:t[2], start:$$[$0-2], end:$$[$0], startLabel:t[1].trim(), endLabel:t[3].trim()};
   
 break;
@@ -1506,13 +1513,15 @@ nomnoml.render = function (graphics, config, compartment, setFont){
 
 		function drawArrowEnd(id, path, end){
 			if (id === '>' || id === '<')
-				drawArrow(path, filled, end)
+				drawEnd(path, end, arrows.arrow, false)
 			else if (id === ':>' || id === '<:')
-				drawArrow(path, empty, end)
+				drawEnd(path, end, arrows.triangle, true)
 			else if (id === '+')
-				drawArrow(path, filled, end, diamond)
+				drawEnd(path, end, arrows.diamond, true)
 			else if (id === 'o')
-				drawArrow(path, empty, end, diamond)
+				drawEnd(path, end, arrows.diamond, false)
+			else if (id === '(' || id === ')')
+				drawEnd(path, end, arrows.semicircle, false)
 		}
 
 		var tokens = r.assoc.split('-')
@@ -1536,23 +1545,88 @@ nomnoml.render = function (graphics, config, compartment, setFont){
 		return p2;
 	}
 
-	function drawArrow(path, isOpen, arrowPoint, diamond){
+	var arrows = {
+		arrow : function(dir, point, size, filled) {
+			var shape = [
+				{x: -1, y: -1/2},
+				{x: 0, y: 0},
+				{x: -1, y: +1/2}
+			]
+			var rot = vm.rotation({x:-1, y:0}, dir);
+			var localXlate = vm.mult(dir, -size);
+			var path = _.map(shape, function(p) {
+				var scaled = vm.mult(p, size*10);
+				var rotated = vm.rotate(scaled, rot);
+				var local = vm.add(rotated, localXlate)
+				var global = vm.add(local, point)
+				return global;
+			})
+			g.path(path).stroke();
+		},
+		triangle : function(dir, point, size, filled) {
+			var shape = [
+				{x: -1, y: -1/2},
+				{x: 0, y: 0},
+				{x: -1, y: +1/2}
+			]
+			var rot = vm.rotation({x:-1, y:0}, dir);
+			var localXlate = vm.mult(dir, -size);
+			var path = _.map(shape, function(p) {
+				var scaled = vm.mult(p, size*10);
+				var rotated = vm.rotate(scaled, rot);
+				var local = vm.add(rotated, localXlate)
+				var global = vm.add(local, point)
+				return global;
+			})
+			g.fillStyle(filled ? config.stroke : config.fill[0])		
+			g.circuit(path).fillAndStroke();
+		},
+		diamond : function(dir, point, size, filled) {
+			var shape = [
+				{x: -2, y: 0},
+				{x: -1, y: -1/2 },
+				{x: 0, y: 0},
+				{x: -1, y: +1/2}
+			]
+			var rot = vm.rotation({x:-1, y:0}, dir);
+			var localXlate = vm.mult(dir, -size);
+			var path = _.map(shape, function(p) {
+				var scaled = vm.mult(p, size*10);
+				var rotated = vm.rotate(scaled, rot);
+				var local = vm.add(rotated, localXlate)
+				var global = vm.add(local, point)
+				return global;
+			})
+			g.fillStyle(filled ? config.stroke : config.fill[0])		
+			g.circuit(path).fillAndStroke();
+		},
+		semicircle : function(dir, point, size, filled) {
+			var shape = [
+				{x: 1/3, y: -1/2 },
+				{x: -1, y: 0 },
+				{x: 1/3, y: +1/2 }
+			]
+			var rot = vm.rotation({x:-1, y:0}, dir);
+			var localXlate = vm.mult(dir, -size);
+			var p = _.map(shape, function(p) {
+				var scaled = vm.mult(p, size*10);
+				var rotated = vm.rotate(scaled, rot);
+				var local = vm.add(rotated, localXlate)
+				var global = vm.add(local, point)
+				return global;
+			})
+			g.beginPath()
+			g.moveTo(p[0].x, p[0].y);
+			g.arcTo(p[1].x, p[1].y, p[2].x, p[2].y, size*5.5);
+			g.stroke();
+		}	
+	}
+
+	function drawEnd(path, arrowPoint, arrow, filled) {
 		var size = (config.spacing - 2*config.edgeMargin) * config.arrowSize / 30
 		var v = vm.diff(path[path.length-2], _.last(path))
-		var nv = vm.normalize(v)
-		function getArrowBase(s){ return vm.add(arrowPoint, vm.mult(nv, s*size)) }
-		var arrowBase = getArrowBase(diamond ? 7 : 10)
-		var t = vm.rot(nv)
-		var arrowButt = (diamond) ? getArrowBase(14)
-				: (isOpen && !config.fillArrows) ? getArrowBase(5) : arrowBase
-		var arrow = [
-			vm.add(arrowBase, vm.mult(t, 4*size)),
-			arrowButt,
-			vm.add(arrowBase, vm.mult(t, -4*size)),
-			arrowPoint
-		]
-		g.fillStyle(isOpen ? config.stroke : config.fill[0])
-		g.circuit(arrow).fillAndStroke()
+		var dir = vm.normalize(v)
+		arrow(dir, arrowPoint, size, filled);
 	}
 
 	function snapToPixels(){

@@ -136,9 +136,9 @@ nomnoml.visualizers = {
   transceiver : function (node, x, y, padding, config, g) {
       g.circuit([
         {x: x-padding, y: y},
-        {x: x+node.width, y: y},
-        {x: x+node.width+padding, y: y+node.height/2},
-        {x: x+node.width, y: y+node.height},
+        {x: x+node.width-padding, y: y},
+        {x: x+node.width, y: y+node.height/2},
+        {x: x+node.width-padding, y: y+node.height},
         {x: x-padding, y: y+node.height},
         {x: x, y: y+node.height/2}
       ]).fillAndStroke()
